@@ -12,8 +12,8 @@ import "./L1Vault.sol";
 contract L1TokenBridge is Ownable, Pausable, ReentrancyGuard {
     uint256 public DEPOSIT_LIMIT = 100000 ether;
 
-    IERC20 public token;
-    L1Vault public vault;
+    IERC20 public immutable token;
+    L1Vault public immutable vault;
     mapping(address account => bool isSigner) public signers;
 
     error DepositLimitReached();
