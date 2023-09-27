@@ -1,23 +1,37 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+// __| |_____________________________________________________| |__
+// __   _____________________________________________________   __
+//   | |                                                     | |
+//   | | ____                  ____       _     _            | |
+//   | || __ )  ___  ___ ___  | __ ) _ __(_) __| | __ _  ___ | |
+//   | ||  _ \ / _ \/ __/ __| |  _ \| '__| |/ _` |/ _` |/ _ \| |
+//   | || |_) | (_) \__ \__ \ | |_) | |  | | (_| | (_| |  __/| |
+//   | ||____/ \___/|___/___/ |____/|_|  |_|\__,_|\__, |\___|| |
+//   | |                                          |___/      | |
+// __| |_____________________________________________________| |__
+// __   _____________________________________________________   __
+//   | |                                                     | |
 
-import "openzeppelin/contracts/interfaces/IERC20.sol";
-import "openzeppelin/contracts/access/Ownable.sol";
-import "openzeppelin/contracts/security/Pausable.sol";
-import "openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.20;
 
-import "./L1Vault.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
-contract L1TokenBridge is Ownable, Pausable, ReentrancyGuard {
-    uint256 public DEPOSIT_LIMIT = 100000 ether;
+import { L1Vault } from "./L1Vault.sol";
+
+contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
+    uint256 public DEPOSIT_LIMIT = 100_000 ether;
 
     IERC20 public immutable token;
     L1Vault public immutable vault;
     mapping(address account => bool isSigner) public signers;
 
-    error DepositLimitReached();
-    error Unauthorized();
+    error L1BossBridge__DepositLimitReached();
+    error L1BossBridge__Unauthorized();
+    error L1BossBridge__CallFailed();
 
     event Deposit(address from, address to, uint256 amount);
 
@@ -42,7 +56,7 @@ contract L1TokenBridge is Ownable, Pausable, ReentrancyGuard {
 
     function depositTokensToL2(address from, address l2Recipient, uint256 amount) external whenNotPaused {
         if (token.balanceOf(address(vault)) + amount > DEPOSIT_LIMIT) {
-            revert DepositLimitReached();
+            revert L1BossBridge__DepositLimitReached();
         }
         token.transferFrom(from, address(vault), amount);
 
@@ -67,12 +81,14 @@ contract L1TokenBridge is Ownable, Pausable, ReentrancyGuard {
         address signer = ECDSA.recover(ECDSA.toEthSignedMessageHash(keccak256(message)), v, r, s);
 
         if (!signers[signer]) {
-            revert Unauthorized();
+            revert L1BossBridge__Unauthorized();
         }
 
         (address target, uint256 value, bytes memory data) = abi.decode(message, (address, uint256, bytes));
 
-        (bool success,) = target.call{value: value}(data);
-        require(success, "External call failed");
+        (bool success,) = target.call{ value: value }(data);
+        if (!success) {
+            revert L1BossBridge__CallFailed();
+        }
     }
 }

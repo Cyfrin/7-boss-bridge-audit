@@ -1,12 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.13;
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.20;
 
-import {Test, console2} from "forge-std/Test.sol";
-import {ECDSA} from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import "../src/L1TokenBridge.sol";
-import "../src/L1Token.sol";
+import { Test, console2 } from "forge-std/Test.sol";
+import { ECDSA } from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { L1BossBridge, L1Vault } from "../src/L1BossBridge.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { L1Token } from "../src/L1Token.sol";
 
-contract L1TokenBridgeTest is Test {
+contract L1BossBridgeTest is Test {
     event Deposit(address from, address to, uint256 amount);
 
     address deployer = makeAddr("deployer");
@@ -15,7 +16,7 @@ contract L1TokenBridgeTest is Test {
     Account operator = makeAccount("operator");
 
     L1Token token;
-    L1TokenBridge tokenBridge;
+    L1BossBridge tokenBridge;
     L1Vault vault;
 
     function setUp() public {
@@ -26,7 +27,7 @@ contract L1TokenBridgeTest is Test {
         token.transfer(address(user), 1000e18);
 
         // Deploy bridge
-        tokenBridge = new L1TokenBridge(IERC20(token));
+        tokenBridge = new L1BossBridge(IERC20(token));
         vault = tokenBridge.vault();
 
         // Add a new allowed signer to the bridge
@@ -126,7 +127,7 @@ contract L1TokenBridgeTest is Test {
         deal(address(token), user, amount);
         token.approve(address(tokenBridge), amount);
 
-        vm.expectRevert(L1TokenBridge.DepositLimitReached.selector);
+        vm.expectRevert(L1BossBridge.L1BossBridge__DepositLimitReached.selector);
         tokenBridge.depositTokensToL2(user, userInL2, amount);
         vm.stopPrank();
     }
@@ -160,9 +161,10 @@ contract L1TokenBridgeTest is Test {
         assertEq(token.balanceOf(address(vault)), depositAmount);
         assertEq(token.balanceOf(address(user)), userInitialBalance - depositAmount);
 
-        (uint8 v, bytes32 r, bytes32 s) = _signMessage(_getTokenWithdrawalMessage(user, depositAmount), makeAccount("unknownOperator").key);
+        (uint8 v, bytes32 r, bytes32 s) =
+            _signMessage(_getTokenWithdrawalMessage(user, depositAmount), makeAccount("unknownOperator").key);
 
-        vm.expectRevert(L1TokenBridge.Unauthorized.selector);
+        vm.expectRevert(L1BossBridge.L1BossBridge__Unauthorized.selector);
         tokenBridge.withdrawTokensToL1(user, depositAmount, v, r, s);
     }
 
@@ -195,12 +197,7 @@ contract L1TokenBridgeTest is Test {
         tokenBridge.withdrawTokensToL1(user, depositAmount, v, r, s);
     }
 
-    
-    function _getTokenWithdrawalMessage(address recipient, uint256 amount)
-        private
-        view
-        returns (bytes memory)
-    {   
+    function _getTokenWithdrawalMessage(address recipient, uint256 amount) private view returns (bytes memory) {
         return abi.encode(
             address(token), // target
             0, // value
@@ -213,7 +210,14 @@ contract L1TokenBridgeTest is Test {
      * Although not coded here (for simplicity), you can safely assume that our operator refuses to sign any withdrawal
      * request from an account that never originated a transaction containing a successful deposit.
      */
-    function _signMessage(bytes memory message, uint256 privateKey) private pure returns (uint8 v, bytes32 r, bytes32 s) {
+    function _signMessage(
+        bytes memory message,
+        uint256 privateKey
+    )
+        private
+        pure
+        returns (uint8 v, bytes32 r, bytes32 s)
+    {
         return vm.sign(privateKey, ECDSA.toEthSignedMessageHash(keccak256(message)));
     }
 }

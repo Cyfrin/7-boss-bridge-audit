@@ -12,7 +12,7 @@ Short descriptions of the issues included in the code. Warning: there might be m
     - Valid signatures from the bridge operator can be reused to continue executing withdrawals due to the lack of nonces (or some other replay-protection mechanism).
     - PoC in `testCanReplayWithdrawals`
 - Can drain vault by calling from bridge to vault
-    - The L1 part of the bridge includes low-level external call that could be used to call sensitive contracts of the bridge. Such as the vault. Because the L1TokenBridge owns the L1Vault, an attacker could submit a message that targets the vault and executes is `approveTo` function. This would allow anyone to drain the vault.
+    - The L1 part of the bridge includes low-level external call that could be used to call sensitive contracts of the bridge. Such as the vault. Because the L1BossBridge owns the L1Vault, an attacker could submit a message that targets the vault and executes is `approveTo` function. This would allow anyone to drain the vault.
     - PoC in `testCanCallVaultApproveFromBridgeAndDrainVault`
 - Return bombs
     - During withdrawals, the L1 part of the bridge executes a low-level call to an arbitrary target passing all available gas. This allows a malicious target to drop a return bomb to the caller, making it pay for any amount of consumed gas.

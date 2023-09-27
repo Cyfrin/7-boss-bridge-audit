@@ -1,4 +1,4 @@
-# The Bridge
+# Boss Bridge
 
 This project presents a simple bridge mechanism to move our ERC20 token from L1 to an L2 we're building.
 The L2 part of the bridge is still under construction, so we don't include it here.
@@ -22,8 +22,17 @@ The bridge operator is in charge of signing withdrawal requests submitted by use
 
 ```
 ./src/
-└── L1Token.sol
-└── L1TokenBridge.sol
-└── L1Vault.sol
+#-- L1BossBridge.sol
+#-- L1Token.sol
+#-- L1Vault.sol
+#-- TokenFactory.sol
 ```
-- Solc Version: 0.8.19
+- Solc Version: 0.8.20
+- Chain(s) to deploy contracts to:
+  - Ethereum Mainnet: 
+    - L1BossBridge.sol
+    - L1Token.sol
+    - L1Vault.sol
+    - TokenFactory.sol
+  - ZKSync Era:
+    - TokenFactory.sol
