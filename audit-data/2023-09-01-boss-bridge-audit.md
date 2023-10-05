@@ -246,7 +246,7 @@ The `L1BossBridge` contract includes the `sendToL1` function that, if called wit
 
 The `L1BossBridge` contract owns the `L1Vault` contract. Therefore, an attacker could submit a call that targets the vault and executes is `approveTo` function, passing an attacker-controlled address to increase its allowance. This would then allow the attacker to completely drain the vault.
 
-It's worth noting that this attack's likelihood depends on the level of sophistication of the off-chain validations implemented by the operators that approve and sign withdrawals. However, we're rating it as a High severity issue because, according to the available documention, the only validation made by off-chain services is that "the account submitting the withdrawal has first originated a successful deposit in the L1 part of the bridge". As the next PoC shows, such validation is not enough to prevent the attack.
+It's worth noting that this attack's likelihood depends on the level of sophistication of the off-chain validations implemented by the operators that approve and sign withdrawals. However, we're rating it as a High severity issue because, according to the available documentation, the only validation made by off-chain services is that "the account submitting the withdrawal has first originated a successful deposit in the L1 part of the bridge". As the next PoC shows, such validation is not enough to prevent the attack.
 
 To reproduce, include the following test in the `L1BossBridge.t.sol` file:
 
@@ -292,7 +292,7 @@ If the external call's returndata is not to be used, then consider modifying the
 
 ### [L-1] Lack of event emission during withdrawals
 
-Neither the `sendToL1` function nor the `withdrawTokensToL1` function emit an event when a withdrawal operation is succesfully executed. This prevents off-chain monitoring mechanisms to monitor withdrawals and raise alerts on suspicious scenarios.
+Neither the `sendToL1` function nor the `withdrawTokensToL1` function emit an event when a withdrawal operation is successfully executed. This prevents off-chain monitoring mechanisms to monitor withdrawals and raise alerts on suspicious scenarios.
 
 Modify the `sendToL1` function to include a new event that is always emitted upon completing withdrawals.
 
