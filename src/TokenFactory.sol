@@ -4,9 +4,9 @@ pragma solidity 0.8.20;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 /* 
-    * @title TokenFactory
-    * @dev Allows the owner to deploy new ERC20 contracts
-    * @dev This contract will be deployed on both an L1 & an L2
+* @title TokenFactory
+* @dev Allows the owner to deploy new ERC20 contracts
+* @dev This contract will be deployed on both an L1 & an L2
 */
 contract TokenFactory is Ownable {
     mapping(string tokenSymbol => address tokenAddress) private s_tokenToAddress;
