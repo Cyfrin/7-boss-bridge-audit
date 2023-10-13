@@ -16,8 +16,9 @@ pragma solidity 0.8.20;
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { Pausable } from "@openzeppelin/contracts/security/Pausable.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 import { L1Vault } from "./L1Vault.sol";
@@ -35,7 +36,7 @@ contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
 
     event Deposit(address from, address to, uint256 amount);
 
-    constructor(IERC20 _token) {
+    constructor(IERC20 _token) Ownable(msg.sender) {
         token = _token;
         vault = new L1Vault(token);
         // Allows the bridge to move tokens out of the vault to facilitate withdrawals
@@ -78,7 +79,7 @@ contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
     }
 
     function sendToL1(uint8 v, bytes32 r, bytes32 s, bytes memory message) public whenNotPaused nonReentrant {
-        address signer = ECDSA.recover(ECDSA.toEthSignedMessageHash(keccak256(message)), v, r, s);
+        address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(keccak256(message)), v, r, s);
 
         if (!signers[signer]) {
             revert L1BossBridge__Unauthorized();

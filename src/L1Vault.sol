@@ -7,7 +7,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 contract L1Vault is Ownable {
     IERC20 public token;
 
-    constructor(IERC20 _token) {
+    constructor(IERC20 _token) Ownable(msg.sender) {
         token = _token;
     }
 

@@ -13,6 +13,8 @@ contract TokenFactory is Ownable {
 
     event TokenDeployed(string symbol, address addr);
 
+    constructor() Ownable(msg.sender) { }
+
     /*
      * @dev Deploys a new ERC20 contract
      * @param symbol The symbol of the new token

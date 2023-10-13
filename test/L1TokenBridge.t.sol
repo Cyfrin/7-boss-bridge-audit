@@ -3,8 +3,11 @@ pragma solidity 0.8.20;
 
 import { Test, console2 } from "forge-std/Test.sol";
 import { ECDSA } from "openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { Ownable } from "openzeppelin/contracts/access/Ownable.sol";
+import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { L1BossBridge, L1Vault } from "../src/L1BossBridge.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IERC20 } from "openzeppelin/contracts/interfaces/IERC20.sol";
 import { L1Token } from "../src/L1Token.sol";
 
 contract L1BossBridgeTest is Test {
@@ -62,7 +65,7 @@ contract L1BossBridgeTest is Test {
     }
 
     function testNonOwnerCannotPauseBridge() public {
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         tokenBridge.pause();
     }
 
@@ -81,7 +84,7 @@ contract L1BossBridgeTest is Test {
         tokenBridge.pause();
         assertTrue(tokenBridge.paused());
 
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         tokenBridge.unpause();
     }
 
@@ -90,7 +93,7 @@ contract L1BossBridgeTest is Test {
     }
 
     function testNonOwnerCannotAddSigner() public {
-        vm.expectRevert("Ownable: caller is not the owner");
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, address(this)));
         tokenBridge.setSigner(operator.addr, true);
     }
 
@@ -102,7 +105,7 @@ contract L1BossBridgeTest is Test {
         uint256 amount = 10e18;
         token.approve(address(tokenBridge), amount);
 
-        vm.expectRevert("Pausable: paused");
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         tokenBridge.depositTokensToL2(user, userInL2, amount);
         vm.stopPrank();
     }
@@ -178,7 +181,7 @@ contract L1BossBridgeTest is Test {
         bytes32 r = 0;
         bytes32 s = 0;
 
-        vm.expectRevert("ECDSA: invalid signature");
+        vm.expectRevert(ECDSA.ECDSAInvalidSignature.selector);
         tokenBridge.withdrawTokensToL1(user, depositAmount, v, r, s);
     }
 
@@ -193,7 +196,7 @@ contract L1BossBridgeTest is Test {
         vm.startPrank(tokenBridge.owner());
         tokenBridge.pause();
 
-        vm.expectRevert("Pausable: paused");
+        vm.expectRevert(Pausable.EnforcedPause.selector);
         tokenBridge.withdrawTokensToL1(user, depositAmount, v, r, s);
     }
 
@@ -218,6 +221,6 @@ contract L1BossBridgeTest is Test {
         pure
         returns (uint8 v, bytes32 r, bytes32 s)
     {
-        return vm.sign(privateKey, ECDSA.toEthSignedMessageHash(keccak256(message)));
+        return vm.sign(privateKey, MessageHashUtils.toEthSignedMessageHash(keccak256(message)));
     }
 }
