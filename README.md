@@ -17,7 +17,7 @@ The bridge operator is in charge of signing withdrawal requests submitted by use
 
 ## Audit Scope Details
 
-- Commit Hash: TBD
+- Commit Hash: 07af21653ab3e8a8362bf5f63eb058047f562375
 - In scope
 
 ```

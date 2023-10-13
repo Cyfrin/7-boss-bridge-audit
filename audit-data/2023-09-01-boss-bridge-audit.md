@@ -61,6 +61,8 @@ Assisting Auditors:
     - [\[M-1\] Withdrawals are prone to unbounded gas consumption due to return bombs](#m-1-withdrawals-are-prone-to-unbounded-gas-consumption-due-to-return-bombs)
   - [Low](#low)
     - [\[L-1\] Lack of event emission during withdrawals](#l-1-lack-of-event-emission-during-withdrawals)
+  - [Informational](#informational)
+    - [\[I-1\] Insufficient test coverage](#i-1-insufficient-test-coverage)
 
 </details>
 </br>
@@ -86,7 +88,7 @@ The YOUR_NAME_HERE team makes all effort to find as many vulnerabilities in the 
 
 **The findings described in this document correspond the following commit hash:**
 ```
-026da6e73fde0dd0a650d623d0411547e3188909
+07af21653ab3e8a8362bf5f63eb058047f562375
 ```
 
 ## Scope 
@@ -296,3 +298,18 @@ Neither the `sendToL1` function nor the `withdrawTokensToL1` function emit an ev
 
 Modify the `sendToL1` function to include a new event that is always emitted upon completing withdrawals.
 
+## Informational
+
+### [I-1] Insufficient test coverage
+
+```
+Running tests...
+| File                 | % Lines        | % Statements   | % Branches    | % Funcs       |
+|----------------------|----------------|----------------|---------------|---------------|
+| src/L1BossBridge.sol | 86.67% (13/15) | 90.00% (18/20) | 83.33% (5/6)  | 83.33% (5/6)  |
+| src/L1Vault.sol      | 0.00% (0/1)    | 0.00% (0/1)    | 100.00% (0/0) | 0.00% (0/1)   |
+| src/TokenFactory.sol | 100.00% (4/4)  | 100.00% (4/4)  | 100.00% (0/0) | 100.00% (2/2) |
+| Total                | 85.00% (17/20) | 88.00% (22/25) | 83.33% (5/6)  | 77.78% (7/9)  |
+```
+
+**Recommended Mitigation:** Aim to get test coverage up to over 90% for all files.
