@@ -20,10 +20,13 @@ import { Pausable } from "@openzeppelin/contracts/utils/Pausable.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 import { L1Vault } from "./L1Vault.sol";
 
 contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
     uint256 public DEPOSIT_LIMIT = 100_000 ether;
 
     IERC20 public immutable token;
@@ -55,16 +58,36 @@ contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
         signers[account] = enabled;
     }
 
+    /*
+     * @notice Locks tokens in the vault and emits a Deposit event
+     * the unlock event will trigger the L2 minting process. There are nodes listening
+     * for this event and will mint the corresponding tokens on L2. This is a centralized process.
+     * 
+     * @param from The address of the user who is depositing tokens
+     * @param l2Recipient The address of the user who will receive the tokens on L2
+     * @param amount The amount of tokens to deposit
+     */
     function depositTokensToL2(address from, address l2Recipient, uint256 amount) external whenNotPaused {
         if (token.balanceOf(address(vault)) + amount > DEPOSIT_LIMIT) {
             revert L1BossBridge__DepositLimitReached();
         }
-        token.transferFrom(from, address(vault), amount);
+        token.safeTransferFrom(from, address(vault), amount);
 
         // Our off-chain service picks up this event and mints the corresponding tokens on L2
         emit Deposit(from, l2Recipient, amount);
     }
 
+    /*
+     * @notice This is the function responsible for withdrawing tokens from L2 to L1.
+     * Our L2 will have a similar mechanism for withdrawing tokens from L1 to L2.
+     * @notice The signature is required to prevent replay attacks. 
+     * 
+     * @param to The address of the user who will receive the tokens on L1
+     * @param amount The amount of tokens to withdraw
+     * @param v The v value of the signature
+     * @param r The r value of the signature
+     * @param s The s value of the signature
+     */
     function withdrawTokensToL1(address to, uint256 amount, uint8 v, bytes32 r, bytes32 s) external {
         sendToL1(
             v,
@@ -78,7 +101,15 @@ contract L1BossBridge is Ownable, Pausable, ReentrancyGuard {
         );
     }
 
-    function sendToL1(uint8 v, bytes32 r, bytes32 s, bytes memory message) public whenNotPaused nonReentrant {
+    /*
+     * @notice This is the function responsible for withdrawing ETH from L2 to L1.
+     *
+     * @param v The v value of the signature
+     * @param r The r value of the signature
+     * @param s The s value of the signature
+     * @param message The message/data to be sent to L1 (can be blank)
+     */
+    function sendToL1(uint8 v, bytes32 r, bytes32 s, bytes memory message) public nonReentrant whenNotPaused {
         address signer = ECDSA.recover(MessageHashUtils.toEthSignedMessageHash(keccak256(message)), v, r, s);
 
         if (!signers[signer]) {
