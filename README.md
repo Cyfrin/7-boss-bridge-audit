@@ -1,7 +1,3 @@
-<p align="center">
-<img src="./images/boss-bridge.png" width="400" alt="puppy-raffle">
-<br/>
-
 # Boss Bridge
 
 This project presents a simple bridge mechanism to move our ERC20 token from L1 to an L2 we're building.
@@ -24,67 +20,6 @@ For the moment, assume *only* the `L1Token.sol` or copies of it will be used as 
 ## On withdrawals
 
 The bridge operator is in charge of signing withdrawal requests submitted by users. These will be submitted on the L2 component of the bridge, not included here. Our service will validate the payloads submitted by users, checking that the account submitting the withdrawal has first originated a successful deposit in the L1 part of the bridge.
-
-
-# Getting Started
-
-## Requirements
-
-- [git](https://git-scm.com/book/en/v2/Getting-Started-Installing-Git)
-  - You'll know you did it right if you can run `git --version` and you see a response like `git version x.x.x`
-- [foundry](https://getfoundry.sh/)
-  - You'll know you did it right if you can run `forge --version` and you see a response like `forge 0.2.0 (816e00b 2023-03-16T00:05:26.396218Z)`
-
-## Quickstart
-
-```
-git clone https://github.com/Cyfrin/7-boss-bridge-audit
-cd 7-boss-bridge-audit
-make
-```
-
-or
-
-```
-git clone https://github.com/Cyfrin/7-boss-bridge-audit
-cd 7-boss-bridge-audit
-forge install
-forge build
-```
-
-# Usage
-
-## Testing
-
-```
-forge test
-```
-
-## Test Coverage
-
-```
-forge coverage
-```
-
-and for coverage based testing:
-
-```
-forge coverage --report debug
-```
-
-## Static Analysis
-
-### Slither
-```
-make slither
-```
-
-### Aderyn
-
-```
-make aderyn
-```
-
 
 ## Audit Scope Details
 
@@ -121,7 +56,7 @@ make aderyn
 
 ## Known Issues
 
-- We are aware the bridge is centralized and owned by a single user, aka it is centralized. 
+- We are aware the bridge is centralized and owned by a single user. 
 - We are missing some zero address checks/input validation intentionally to save gas. 
 - We have magic numbers defined as literals that should be constants. 
 - Assume the `deployToken` will always correctly have an L1Token.sol copy, and not some [weird erc20](https://github.com/d-xo/weird-erc20)

@@ -4,7 +4,7 @@
 
 DEFAULT_ANVIL_KEY := 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 
-all: remove install build
+all: clean remove install update build
 
 help:
 	@echo "Usage:"
@@ -34,9 +34,7 @@ format :; forge fmt
 
 anvil :; anvil -m 'test test test test test test test test test test test junk' --steps-tracing --block-time 1
 
-slither :; slither . --config-file slither.config.json 
-
-aderyn :; aderyn --root .
+slither :; slither . --config-file slither.config.json --checklist 
 
 scope :; tree ./src/ | sed 's/└/#/g; s/──/--/g; s/├/#/g; s/│ /|/g; s/│/|/g'
 
