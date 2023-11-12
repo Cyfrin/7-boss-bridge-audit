@@ -56,7 +56,7 @@ Assisting Auditors:
     - [\[H-1\] Anyone can move users' tokens that approved the bridge](#h-1-anyone-can-move-users-tokens-that-approved-the-bridge)
     - [\[H-2\] Anyone might mint unbacked tokens](#h-2-anyone-might-mint-unbacked-tokens)
     - [\[H-3\] All funds can be stolen by replaying withdrawals](#h-3-all-funds-can-be-stolen-by-replaying-withdrawals)
-    - [\[H-4\] All funds can be stolen by calling the vault from the bridge](#h-4-all-funds-can-be-stolen-by-calling-from-the-bridge-to-the-vault)
+    - [\[H-4\] All funds can be stolen by calling the vault from the bridge](#h-4-all-funds-can-be-stolen-by-calling-the-vault-from-the-bridge)
   - [Medium](#medium)
     - [\[M-1\] Withdrawals are prone to unbounded gas consumption due to return bombs](#m-1-withdrawals-are-prone-to-unbounded-gas-consumption-due-to-return-bombs)
   - [Low](#low)
@@ -305,7 +305,7 @@ Modify the `sendToL1` function to include a new event that is always emitted upo
 ```
 Running tests...
 | File                 | % Lines        | % Statements   | % Branches    | % Funcs       |
-|----------------------|----------------|----------------|---------------|---------------|
+| -------------------- | -------------- | -------------- | ------------- | ------------- |
 | src/L1BossBridge.sol | 86.67% (13/15) | 90.00% (18/20) | 83.33% (5/6)  | 83.33% (5/6)  |
 | src/L1Vault.sol      | 0.00% (0/1)    | 0.00% (0/1)    | 100.00% (0/0) | 0.00% (0/1)   |
 | src/TokenFactory.sol | 100.00% (4/4)  | 100.00% (4/4)  | 100.00% (0/0) | 100.00% (2/2) |

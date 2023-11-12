@@ -21,6 +21,8 @@ For the moment, assume *only* the `L1Token.sol` or copies of it will be used as 
 
 The bridge operator is in charge of signing withdrawal requests submitted by users. These will be submitted on the L2 component of the bridge, not included here. Our service will validate the payloads submitted by users, checking that the account submitting the withdrawal has first originated a successful deposit in the L1 part of the bridge.
 
+We use a lot of signing in this project, so be sure to be familiar with [EIP-2612](https://eips.ethereum.org/EIPS/eip-2612) and/or [EIP-712](https://eips.ethereum.org/EIPS/eip-712).
+
 ## Audit Scope Details
 
 - Commit Hash: 07af21653ab3e8a8362bf5f63eb058047f562375
@@ -50,7 +52,7 @@ The bridge operator is in charge of signing withdrawal requests submitted by use
 - Bridge Owner: A centralized bridge owner who can:
   - pause/unpause the bridge in the event of an emergency
   - set `Signers` (see below)
-- Signer: Users who can "send" a token from L1 -> L2. 
+- Signer: Users who can "send" a token from L2 -> L1. 
 - Vault: The contract owned by the bridge that holds the tokens. 
 - Users: Users mainly only call `depositTokensToL2`, when they want to send tokens from L1 -> L2. 
 
