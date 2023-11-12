@@ -1,5 +1,7 @@
 # Boss Bridge
 
+![Boss Bridge](./audit-data/boss-bridge.png)
+
 This project presents a simple bridge mechanism to move our ERC20 token from L1 to an L2 we're building.
 The L2 part of the bridge is still under construction, so we don't include it here.
 
