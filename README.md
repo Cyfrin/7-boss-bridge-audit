@@ -115,7 +115,7 @@ make aderyn
 - Bridge Owner: A centralized bridge owner who can:
   - pause/unpause the bridge in the event of an emergency
   - set `Signers` (see below)
-- Signer: Users who can "send" a token from L1 -> L2. 
+- Signer: Users who can "send" a token from L2 -> L1. 
 - Vault: The contract owned by the bridge that holds the tokens. 
 - Users: Users mainly only call `depositTokensToL2`, when they want to send tokens from L1 -> L2. 
 
