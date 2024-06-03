@@ -36,7 +36,7 @@ anvil :; anvil -m 'test test test test test test test test test test test junk' 
 
 slither :; slither . --config-file slither.config.json 
 
-aderyn :; aderyn --root .
+aderyn :; aderyn
 
 scope :; tree ./src/ | sed 's/└/#/g; s/──/--/g; s/├/#/g; s/│ /|/g; s/│/|/g'
 
