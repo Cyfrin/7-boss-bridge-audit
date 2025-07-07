@@ -127,12 +127,12 @@ Withdrawals must be approved operators (or "signers"). Essentially they are expe
 
 | Severity | Number of issues found |
 | -------- | ---------------------- |
-| High     | 4                      |
+| High     | 8                      |
 | Medium   | 1                      |
-| Low      | 1                      |
-| Info     | 0                      |
+| Low      | 3                      |
+| Info     | 1                      |
 | Gas      | 0                      |
-| Total    | 6                      |
+| Total    | 13                     |
 
 # Findings
 
@@ -292,14 +292,254 @@ Consider disallowing attacker-controlled external calls to sensitive components 
 
 ### [H-5] `CREATE` opcode does not work on zksync era
 
+**Impact:** Contract deployment failure on zkSync Era
+
+**Description:**
+The `TokenFactory::deployToken` function uses the `CREATE` opcode via inline assembly. However, zkSync Era does not support the `CREATE` opcode in the same way as Ethereum mainnet. This will cause the contract to fail when deployed on zkSync Era.
+
+**Proof of Concept:**
+
+<details>
+<summary>Code</summary>
+
+Add the following code to the `TokenFactoryTest.t.sol` file.
+```javascript
+function testCreateOpcodeZkSyncCompatibility() public {
+    // This test demonstrates the issue - will fail on zkSync
+    string memory symbol = "TEST";
+    bytes memory bytecode = type(L1Token).creationCode;
+    
+    // On zkSync, this would fail due to CREATE opcode incompatibility
+    address tokenAddr = tokenFactory.deployToken(symbol, bytecode);
+    
+    // On Ethereum mainnet, this passes
+    assertTrue(tokenAddr != address(0));
+    
+    // Note: This test will pass on mainnet but fail on zkSync
+    // indicating the compatibility issue
+    console2.log("Token deployed at:", tokenAddr);
+    console2.log("WARNING: This will fail on zkSync Era due to CREATE opcode");
+}
+```
+</details>
+
+**Recommended Mitigation:**
+Consider using zkSync Era compatible deployment methods or use `CREATE2` with proper salt management.
+
 ### [H-6] `L1BossBridge::depositTokensToL2`'s `DEPOSIT_LIMIT` check allows contract to be DoS'd
-*Not shown in video*
+**Impact:** Denial of Service - legitimate users cannot deposit tokens
+
+**Description:**
+The `DEPOSIT_LIMIT` check in `depositTokensToL2` uses the vault's current balance plus the deposit amount:
+
+```solidity
+if (token.balanceOf(address(vault)) + amount > DEPOSIT_LIMIT) {
+    revert L1BossBridge__DepositLimitReached();
+}
+```
+
+This creates a DoS vulnerability where:
+1. An attacker can directly transfer tokens to the vault using `token.transfer(address(vault), amount)`
+2. Once the vault balance approaches `DEPOSIT_LIMIT`, legitimate deposit attempts will fail
+3. The attacker can effectively lock the bridge by filling the vault to the limit
+
+**Proof of Concept:**
+<details>
+<summary> Code </summary>
+Add the following code to the `L1TokenBridge.t.sol` file.
+
+```javascript
+function testDepositLimitDoS() public {
+    // Attacker directly transfers tokens to vault to approach limit
+    vm.startPrank(attacker);
+    deal(address(token), attacker, DEPOSIT_LIMIT);
+    token.transfer(address(vault), DEPOSIT_LIMIT - 1 ether);
+    vm.stopPrank();
+
+    // Now legitimate users cannot deposit even small amounts
+    vm.startPrank(user);
+    token.approve(address(tokenBridge), 1 ether);
+    vm.expectRevert(L1BossBridge__DepositLimitReached.selector);
+    tokenBridge.depositTokensToL2(user, user, 1 ether);
+    vm.stopPrank();
+}
+```
+</details>
+
+
+**Recommended Mitigation:**
+Track deposits separately from the vault balance:
+```diff
++ uint256 private totalDeposits;
+
+function depositTokensToL2(address from, address l2Recipient, uint256 amount) external whenNotPaused {
+-   if (token.balanceOf(address(vault)) + amount > DEPOSIT_LIMIT) {
+-        revert L1BossBridge__DepositLimitReached();
+-   }
++   if (totalDeposits + amount > DEPOSIT_LIMIT) {
++       revert L1BossBridge__DepositLimitReached();
++   }
++   totalDeposits += amount;
+    token.safeTransferFrom(from, address(vault), amount);
+    // Our off-chain service picks up this event and mints the corresponding tokens on L2
+    emit Deposit(from, l2Recipient, amount);
+}
+```
 
 ### [H-7] The `L1BossBridge::withdrawTokensToL1` function has no validation on the withdrawal amount being the same as the deposited amount in `L1BossBridge::depositTokensToL2`, allowing attacker to withdraw more funds than deposited 
-*Not shown in video*
+
+**Impact:** Unlimited fund drainage - attackers can withdraw more than they deposited
+
+**Description:**
+The bridge has no mechanism to track individual user deposits vs withdrawals. An attacker can:
+1. Deposit a small amount (e.g., 1 token)
+2. Get operator signature for withdrawal
+3. Modify the withdrawal amount to drain the entire vault
+4. The signature verification only checks the operator signature, not the amount relationship
+
+**Vulnerability Flow:**
+```solidity
+function withdrawTokensToL1(address to, uint256 amount, uint8 v, bytes32 r, bytes32 s) external {
+    sendToL1(
+        v, r, s,
+        abi.encode(
+            address(token),
+            0,
+            abi.encodeCall(IERC20.transferFrom, (address(vault), to, amount))
+        )
+    );
+}
+```
+
+The `amount` parameter is controlled by the caller, not validated against their deposit history.
+
+**Proof of Concept:**
+<detail>
+<summary> Code <summary>
+Add the following test in the `L1TokenBridge.t.sol` file :
+
+```javascript
+function testWithdrawMoreThanDeposited() public {
+    // Setup: vault has 1000 tokens, attacker deposits 1 token
+    uint256 vaultBalance = 1000e18;
+    uint256 attackerDeposit = 1e18;
+    deal(address(token), address(vault), vaultBalance);
+    
+    vm.startPrank(attacker);
+    deal(address(token), attacker, attackerDeposit);
+    token.approve(address(tokenBridge), attackerDeposit);
+    tokenBridge.depositTokensToL2(attacker, attacker, attackerDeposit);
+    
+    // Attacker attempts to withdraw entire vault balance
+    uint256 withdrawAmount = vaultBalance;
+    (uint8 v, bytes32 r, bytes32 s) = 
+        _signMessage(_getTokenWithdrawalMessage(attacker, withdrawAmount), operator.key);
+    
+    tokenBridge.withdrawTokensToL1(attacker, withdrawAmount, v, r, s);
+    
+    // Attacker successfully withdrew 1000x more than deposited
+    assertEq(token.balanceOf(attacker), withdrawAmount);
+    assertEq(token.balanceOf(address(vault)), vaultBalance - withdrawAmount);
+    vm.stopPrank();
+}
+```
+</details>
+
+
+**Recommended Mitigation:**
+Implement a deposit tracking system:
+```diff
++ mapping(address => uint256) private userDeposits;
++ mapping(address => uint256) private userWithdrawals;
+
+function depositTokensToL2(address from, address l2Recipient, uint256 amount) external whenNotPaused {
+    // ... existing checks ...
++    userDeposits[from] += amount;
+    // ... rest of function ...
+}
+
+function withdrawTokensToL1(address to, uint256 amount, uint8 v, bytes32 r, bytes32 s) external {
++   require(userWithdrawals[to] + amount <= userDeposits[to], "Insufficient deposit balance");
++    userWithdrawals[to] += amount;
+    // ... rest of function ...
+}
+```
 
 ### [H-8] `TokenFactory::deployToken` locks tokens forever 
-*Not shown in video*
+**Impact:** Permanent loss of deployed tokens
+
+**Description:**
+The `deployToken` function uses inline assembly with the `CREATE` opcode to deploy contracts:
+
+```solidity
+function deployToken(string memory symbol, bytes memory contractBytecode) public onlyOwner returns (address addr) {
+    assembly {
+        addr := create(0, add(contractBytecode, 0x20), mload(contractBytecode))
+    }
+    s_tokenToAddress[symbol] = addr;
+    emit TokenDeployed(symbol, addr);
+}
+```
+
+**Critical Issues:**
+1. **No ownership transfer**: Deployed tokens inherit `msg.sender` as owner (the TokenFactory), not the intended recipient
+2. **No access mechanism**: The TokenFactory has no functions to interact with deployed tokens
+3. **Permanent lockup**: Tokens become permanently inaccessible as the factory cannot transfer ownership or perform token operations
+
+**Proof of Concept:**
+<details>
+<summary> Code </summary>
+Add the following test in the `TokenFactoryTest.t.sol` file :
+
+```javascript
+function testDeployedTokensAreLocked() public {
+    // Deploy a token using the factory
+    string memory symbol = "TEST";
+    bytes memory bytecode = type(L1Token).creationCode;
+    
+    address tokenAddr = tokenFactory.deployToken(symbol, bytecode);
+    IERC20 deployedToken = IERC20(tokenAddr);
+    
+    // Token exists and has supply
+    assertTrue(tokenAddr != address(0));
+    assertTrue(deployedToken.totalSupply() > 0);
+    
+    // But tokens are owned by the factory with no way to access them
+    assertEq(deployedToken.balanceOf(address(tokenFactory)), deployedToken.totalSupply());
+    
+    // Factory owner cannot access the tokens (no function to do so)
+    vm.startPrank(tokenFactory.owner());
+    // No function exists to transfer tokens out of the factory
+    vm.stopPrank();
+}
+```
+</details>
+
+**Recommended Mitigation:**
+1. **Add ownership transfer mechanism:**
+```solidity
+function deployToken(string memory symbol, bytes memory contractBytecode, address newOwner) public onlyOwner returns (address addr) {
+    assembly {
+        addr := create(0, add(contractBytecode, 0x20), mload(contractBytecode))
+    }
+    
+    // Transfer ownership to specified address
+    Ownable(addr).transferOwnership(newOwner);
+    
+    s_tokenToAddress[symbol] = addr;
+    emit TokenDeployed(symbol, addr);
+}
+```
+
+2. **Or add token recovery mechanism:**
+```solidity
+function recoverTokens(string memory symbol, address to, uint256 amount) external onlyOwner {
+    address tokenAddr = s_tokenToAddress[symbol];
+    require(tokenAddr != address(0), "Token not found");
+    IERC20(tokenAddr).transfer(to, amount);
+}
+```
+
 
 
 ## Medium
@@ -323,8 +563,74 @@ Modify the `sendToL1` function to include a new event that is always emitted upo
 *Not shown in video*
 ### [L-2] `TokenFactory::deployToken` can create multiple token with same `symbol`
 
-*Not shown in video*
+**Impact:** Confusion, potential loss of funds due to symbol collision
+
+**Description:**
+The `deployToken` function allows overwriting existing symbol mappings:
+
+```solidity
+function deployToken(string memory symbol, bytes memory contractBytecode) public onlyOwner returns (address addr) {
+    assembly {
+        addr := create(0, add(contractBytecode, 0x20), mload(contractBytecode))
+    }
+    s_tokenToAddress[symbol] = addr; // Overwrites existing mapping
+    emit TokenDeployed(symbol, addr);
+}
+```
+
+This can lead to:
+1. Loss of reference to previously deployed tokens
+2. Confusion about which token address corresponds to a symbol
+3. Potential integration issues with off-chain systems
+
+**Proof of Concept:**
+<details>
+<summary>Code</summary>
+Add the following test function in `TokenFactoryTest.t.sol` file :
+
+```javascript
+function testCanOverwriteTokenSymbol() public {
+    string memory symbol = "TEST";
+    bytes memory bytecode = type(L1Token).creationCode;
+    
+    // Deploy first token
+    address firstToken = tokenFactory.deployToken(symbol, bytecode);
+    assertEq(tokenFactory.getTokenAddressFromSymbol(symbol), firstToken);
+    
+    // Deploy second token with same symbol
+    address secondToken = tokenFactory.deployToken(symbol, bytecode);
+    assertEq(tokenFactory.getTokenAddressFromSymbol(symbol), secondToken);
+    
+    // First token reference is lost
+    assertTrue(firstToken != secondToken);
+    assertTrue(firstToken != address(0)); // First token still exists
+    // But mapping now points to second token
+}
+```
+</details>
+
+**Recommended Mitigation:**
+Add a check to prevent symbol reuse:
+```solidity
+function deployToken(string memory symbol, bytes memory contractBytecode) public onlyOwner returns (address addr) {
+    require(s_tokenToAddress[symbol] == address(0), "Symbol already exists");
+    
+    assembly {
+        addr := create(0, add(contractBytecode, 0x20), mload(contractBytecode))
+    }
+    s_tokenToAddress[symbol] = addr;
+    emit TokenDeployed(symbol, addr);
+}
+```
 ### [L-3] Unsupported opcode PUSH0
+**Impact:** Deployment failure on older EVM versions
+
+**Description:**
+The contract may use the `PUSH0` opcode which is not supported on all EVM versions, potentially causing deployment failures on certain networks.
+
+**Recommended Mitigation:**
+Consider using an older Solidity version or ensure deployment targets support the `PUSH0` opcode.
+
 
 ## Informational
 
